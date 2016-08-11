@@ -1,0 +1,221 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<div class="hero-unit">
+    <h2>Estudiantes</h2>
+    <div>
+        <button type="button" id="btnCreateNew" class="btn btn-primary" data-toggle="modal" data-target="#bookModal">
+            Nuevo
+        </button>
+        <br />
+        <br />
+        <table id="tblList" class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Cédula</th>
+                    <th>Nombre</th>
+                    <th>Apellidos</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="modal fade" id="bookModal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title"><label id="title"></label></h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                <input type="hidden" class="form-control" id="Id" />
+                                <label>Cédula</label>
+                                <input type="text" id="Cedula" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                <input type="hidden" class="form-control" id="Id" />
+                                <label>Nombre</label>
+                                <input type="text" id="Nombre" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-md-10">
+                                <label>Apellido</label>
+                                <input type="text" id="Apellido" class="form-control" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="btnClose" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+                    <button type="button" id="btnSave" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    @section Scripts{
+        <script>
+            $(document).on("ready", function () {
+                GetAll();
+            })
+
+            urlAPI = "http://localhost:63118/api/";
+            var resource = "estudiantes";
+            var isUpdatable = false;
+
+            function GetAll() {
+                var rows = "";
+                $.getJSON(urlAPI + resource, function (data) {
+                    $('#tblList tbody').html('');
+                    $.each(data, function (key, value) {
+                        rows += "<tr>"
+                        rows += "<td>" + value.Cedula + "</td>"
+                        rows += "<td>" + value.Nombre + "</td>"
+                        rows += "<td>" + value.Apellido + "</td>"
+                        rows += "<td><button type='button' id='btnEdit' class='btn btn-warning btn-sm' onclick='return GetStudentById(" + value.Id + ")'>Editar</button> <button type='button' id='btnDelete' class='btn btn-danger btn-sm' onclick='return DeleteStudent(" + value.Id + ")'>Eliminar</button></td>"
+                        rows += "</tr>";
+                    });
+                    $('#tblList tbody').append(rows);
+                });
+            };
+
+            function GetStudentById(idStudent) {
+                $("#title").text("Detalles");
+                var url = urlAPI + resource + '/' + idStudent;
+                $.getJSON(url)
+                    .done(function (data) {
+                        $('#txtId').val(data.Id);
+                        $('#txtCedula').val(data.Cedula);
+                        $('#txtNombre').val(data.Nombre);
+                        $('#txtApellido').val(data.Apellido);
+                        isUpdatable = true;
+                        $("#bookModal").modal('show');
+                    })
+                    .fail(function (error) {
+                        clear();
+                    });
+            };
+
+            $("#btnSave").click(function (e) {
+
+                if (isUpdatable) {
+                    var data = {
+                        Id: $("#Id").val(),
+                        Cedula: $("#Cedula").val(),
+                        Nombre: $("#Nombre").val(),
+                        Apellido: $("#Apellido").val()
+                    }
+                }
+                else {
+                    var data = {
+                        Cedula: $("#Cedula").val(),
+                        Nombre: $("#Nombre").val(),
+                        Apellido: $("#Apellido").val()
+                    }
+                }
+
+                if (!isUpdatable) {
+                    var url = urlAPI + resource;
+                    $.ajax({
+                        url: url,
+                        type: 'POST',
+                        data: data,
+                        contentType: "application/json;chartset=utf-8",
+                        statusCode: {
+                            201: function () {
+                                GetAll();
+                                clear();
+                            },
+                            400: function (err) {
+                                alert("Error: " + err.responseText);
+
+                            }
+                        }
+                    });
+                }
+                else {
+                    //function UpdateStudent(idStudent, student) {
+                    var url = urlAPI + resource + '/' + data.Id;
+                    $.ajax({
+                        url: url,
+                        type: 'PUT',
+                        data: data,
+                        contentType: "application/json;chartset=utf-8",
+                        statusCode: {
+                            200: function () {
+                                GetAll();
+                                isUpdatable = false;
+                                $("#bookModal").modal('hide');
+                                clear();
+                            },
+                            404: function () {
+                                alert('Estudiante con id: ' + idStudent + ' no fue encontrado');
+                            },
+                            400: function () {
+                                alert('Error');
+                            }
+                        }
+                    });
+                }
+
+            });
+
+            function DeleteStudent(idStudent) {
+                var url = urlAPI + resource + '/' + idStudent;
+                var confirmDelete = confirm("¿Desea eliminar el estudiante?");
+                if (confirmDelete) {
+
+                    $.ajax({
+                        url: url,
+                        type: 'DELETE',
+                        contentType: "application/json;chartset=utf-8",
+                        statusCode: {
+                            200: function () {
+                                GetAll();
+                            },
+                            404: function () {
+                                alert('Estudiante con id: ' + idStudent + ' no fue encontrado');
+                            }
+                        }
+                    });
+                }
+            }
+
+            $("#btnCreateNew").click(function () {
+                $("#title").text("Nuevo");
+            })
+
+            $("#btnClose").click(function () {
+                clear();
+            });
+
+            function clear() {
+                $("#Cedula").val("");
+                $("#Nombre").val("");
+                $("#Apellido").val("");
+            }
+
+
+
+
+
+
+
+
+
+        </script>
+    }
+
+
+
+
+</div>
